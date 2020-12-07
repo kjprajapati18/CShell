@@ -10,7 +10,7 @@
 
 void loop();
 char* read_line();
-char** parse(char* inp);
+char** parse(char* inp, const char* c);
 void execute(char** inp);
 
 #endif

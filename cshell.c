@@ -19,36 +19,27 @@ int main(int argc, char** argv){
 
 void loop(){
     int check = 1;
+    const char s[2] = ";";
+    const char p[2] = " ";
     do{
         long size = pathconf(".", _PC_PATH_MAX);
         char* buf = (char*) malloc(size);
         char* cwd = getcwd(buf, size);        
-        printf("%s> ", cwd);
+        printf("%s$ ", cwd);
         fflush(0);
         char* line = read_line();
         printf("line: %s\n", line);
-        char* token = strtok(line, ";");
-        char* last;
-        while(token != NULL){
-            char* last = token;
-            printf("Last: %s\n", last);
-            token = strtok(NULL, ";");
-            printf("token: %s\n", token);
-            char** args = parse(last);
-            int i;
-            for(i = 0; i < numArgs; i++){
-                printf("Arg %d: %s\n", i, args[i]);
+        char** cmds = parse(line, s);
+        numcmds = numArgs;
+        int i, j;
+        for(i =0; i < numcmds; i++){
+            char** args = parse(cmds[i], p);
+            for(j = 0; j < numArgs; j++){
+                printf("Arg %d: %s\n", j, args[j]);
             }
             execute(args);
             free(args);
         }
-        /*char** args = parse(token);
-        int i;
-        for(i = 0; i < numArgs; i++){
-            printf("Arg %d: %s\n", i, args[i]);
-        }
-        execute(args);
-        free(args);*/
         free(buf);
         free(line);
     }while(check);
@@ -79,12 +70,12 @@ char* read_line(){
     return buffer;
 }
 
-char** parse(char* line){
+char** parse(char* line, const char* c){
     numArgs = 0;
-    int argsize = 5;
+    int argsize = ARGSIZE;
     int pos = 0;
     char** args = (char**) malloc(sizeof(char*)*argsize);
-    char* token = strtok(line, " ");
+    char* token = strtok(line, c);
     while(token != NULL){
         args[pos] = token;
         numArgs++;
@@ -94,8 +85,9 @@ char** parse(char* line){
             char** newargs = realloc(args, argsize);
             args = newargs;
         }
-        token = strtok(NULL, " ");
+        token = strtok(NULL, c);
     }
+    args[pos] = NULL;
     return args;
 }
 
@@ -120,6 +112,8 @@ void execute(char** args){
         int status;
         pid = fork();
         if(pid == 0){
+            //printf("NUMARGS: %d\n", numArgs);
+            fflush(0);
             execvp(args[0], args);
         }
         else{
