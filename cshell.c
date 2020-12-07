@@ -30,24 +30,25 @@ void loop(){
         char* token = strtok(line, ";");
         char* last;
         while(token != NULL){
-            char** args = parse(token);
+            char* last = token;
+            printf("Last: %s\n", last);
+            token = strtok(NULL, ";");
+            printf("token: %s\n", token);
+            char** args = parse(last);
             int i;
             for(i = 0; i < numArgs; i++){
                 printf("Arg %d: %s\n", i, args[i]);
             }
             execute(args);
             free(args);
-            token = strtok(NULL, ";");
-            printf("token: %s\n", token);
         }
-        printf("token: %s\n", token);
-        char** args = parse(token);
+        /*char** args = parse(token);
         int i;
         for(i = 0; i < numArgs; i++){
             printf("Arg %d: %s\n", i, args[i]);
         }
         execute(args);
-        free(args);
+        free(args);*/
         free(buf);
         free(line);
     }while(check);
