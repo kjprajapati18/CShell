@@ -3,12 +3,14 @@
 #define ARGSIZE 5
 
 int numArgs = 0;
+int numcmds = 0;
 //TODO LIST:
 //Can combine read and parse into one pretty simply. just split up for simplicity atm
 //start exec
 //parse: first split up into list of each individual command by strtoking with ;, then 
     //we have a loop of executables that we use my execute on
 //need to check for piping: > | >>
+//need alllll the error checks lmfao
 
 
 int main(int argc, char** argv){
@@ -21,17 +23,31 @@ void loop(){
         long size = pathconf(".", _PC_PATH_MAX);
         char* buf = (char*) malloc(size);
         char* cwd = getcwd(buf, size);        
-        printf("%s$ ", cwd);
+        printf("%s> ", cwd);
         fflush(0);
         char* line = read_line();
         printf("line: %s\n", line);
-        char** args = parse(line);
-        //Should break up commands by semicolon here or in parse first so as to make an array of commands. TRIPLE POINTER POGGERS. 
+        char* token = strtok(line, ";");
+        char* last;
+        while(token != NULL){
+            char** args = parse(token);
+            int i;
+            for(i = 0; i < numArgs; i++){
+                printf("Arg %d: %s\n", i, args[i]);
+            }
+            execute(args);
+            free(args);
+            token = strtok(NULL, ";");
+            printf("token: %s\n", token);
+        }
+        printf("token: %s\n", token);
+        char** args = parse(token);
         int i;
         for(i = 0; i < numArgs; i++){
             printf("Arg %d: %s\n", i, args[i]);
         }
         execute(args);
+        free(args);
         free(buf);
         free(line);
     }while(check);
