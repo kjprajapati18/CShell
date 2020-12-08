@@ -7,10 +7,15 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <ctype.h>
 
 void loop();
 char* read_line();
 char** parse(char* inp, const char* c);
 void execute(char** inp);
+
+char* removeSpace(char* string);
 
 #endif
