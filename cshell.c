@@ -10,8 +10,21 @@ pid_t pid = -1;
 int killed = 0;
 
 char* buf;
+
 //TODO LIST:
-//program breaks if there are semi-colons somewhere
+//ls | od -c | od -c | od -c | od -c | od -c | wc -c
+//The only type of commmand that seems to not be working (less od's work && more pipes work)
+//      Ex: ls | od -c | od -c | od -c | od -c | wc -c | od -c| od -c| od -c| wc -c | wc -c
+//      This works^
+
+
+//Semi-colons are working. Int Handler is working. Redirection working
+//Exit appears to be working but havent tested rigorously
+//      Only tested exit after doing a bunch of commands with redirect/pipe/interrupt
+//      Exit stalls/double prints with the first command in TODO. Prolly not be an issue with exit tho
+
+//AND YES, I MADE SURE THEY WORK WITH THE ./shell SCRIPT. NOT OS BASH
+
 
 void sigHand(){
     if (pid != -1) kill(pid, SIGKILL);
@@ -67,8 +80,8 @@ void loop(){
 
         int i, j, k;
         for(i =0; i < numcmds; i++){
-            dup2(stdOutCopy, 1);
-            dup2(stdInCopy, 0);
+            //dup2(stdOutCopy, 1);
+            //dup2(stdInCopy, 0);
             char* command = cmds[i];
             char* filepath = strstr(command, ">");
 
@@ -115,7 +128,6 @@ void loop(){
             execute(args, 0, stdOutCopy, stdInCopy);
             free(args);
             free(pipes);
-            free(cmds);
             if(file > 0){
                 close(file);
                 file = -1;
@@ -127,6 +139,7 @@ void loop(){
         }
         //free(buf);
         free(line);
+        free(cmds);
         
     }while(check);
 }
