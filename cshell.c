@@ -173,26 +173,29 @@ void execute(char** args, int pip, int out, int in){
         chdir(args[1]);
         return;
     }
-    else if(!strcmp(args[0], "pwd")){
+    else if(!strcmp(args[0], "pwd") && pip == 0){
         //setup error case
 
-        if(pip == 1){
+        /*if(pip == 1){
             dup2(fd[1], 1);
             dup2(fd[0], 0);
-        }
+        }*/
         long size = pathconf(".", _PC_PATH_MAX);
         char* buf = (char*) malloc(size);
         char* cwd = getcwd(buf, size);        
         printf("%s\n", cwd);
-        write(1, cwd, size);
+        // write(1, cwd, size);
         free(buf);
-        if(pip == 1){
-            close(fd[1]);
-            close(fd[0]);
-            dup2(out, 1);
-            dup2(in, 0);
-        }
+        // if(pip == 1){
+        //     close(fd[1]);
+        //     close(fd[0]);
+        //     dup2(out, 1);
+        //     dup2(in, 0);
+        // }
         return;
+    }
+    else if(!strcmp(args[0], "exit")){
+        exit(0);
     }
     else{
         pid_t pid, wpid;
