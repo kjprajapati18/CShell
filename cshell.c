@@ -26,6 +26,12 @@ void loop(){
     const char c[2] = ">";
     const char e[2] = "|";
     int stdOutCopy = dup(1);
+    int stdInCopy = dup(0);
+
+   /* int output = open("output.txt", O_CREAT | O_WRONLY, 00777);
+    int input = open("input.txt", O_CREAT | O_WRONLY, 00777);
+    dup2(input, 0);
+    dup2(output, 1);*/
 
     do{
         long size = pathconf(".", _PC_PATH_MAX);
@@ -38,11 +44,27 @@ void loop(){
         char** cmds = parse(line, s);
         numcmds = numArgs;
 
-        int i, j;
+        int i, j, k;
         for(i =0; i < numcmds; i++){
+            dup2(stdOutCopy, 1);
+            dup2(stdInCopy, 0);
             char* command = cmds[i];
             char* filepath = strstr(command, ">");
 
+            char** pipes = parse(command, e);
+            int numPipes = numArgs;
+            /*int fd[2];
+            pipe(fd);
+            dup2(fd[0], 0);
+            dup2(fd[1], 1);*/
+            for(k = 0; k < numPipes-1; k++){
+                char** argWpipe = parse(pipes[k], p);
+                execute(argWpipe, 1, stdOutCopy, stdInCopy);
+                free(argWpipe);
+            }
+            
+            dup2(stdOutCopy, 1);
+            //dup2(stdInCopy, 0);
             if(filepath != NULL){
                 int file = -1;
                 *filepath = '\0'; 
@@ -64,36 +86,18 @@ void loop(){
                 dup2(file, 1);
                 close(file);
             }
-            /*parse(command, a);
+            
 
-            if (redirects[1] != NULL){
-                printf("yoyo\n");
-                int file = open(redirects[1], O_WRONLY | O_APPEND);
-                if(file < 0){
-                    file = open(redirects[1], O_WRONLY | O_APPEND | O_CREAT, 00777);
-                    if(file < 0) continue;
-                }
-                dup2(file, 1);
-            } else{
-                free(redirects);
-                printf("In here %d\n", i);
-                redirects = parse(command, c);
-                if(redirects[1] != NULL){
-                    remove(redirects[1]);
-                    int file = open(redirects[1], O_WRONLY | O_CREAT, 00777);
-                    if(file < 0) continue;
-                    dup2(file, 1);
-                }
-            }*/
+            char** args = parse(pipes[numPipes-1], p);
+            //char** args = parse(command, p);
 
-            char** args = parse(cmds[i], p);
-            /*for(j = 0; j < numArgs; j++){
-                printf("Arg %d: %s\n", j, args[j]);
-            }*/
-            //perror("asdfasdfsdfas");
-            execute(args);
+            execute(args, 0, stdOutCopy, stdInCopy);
             free(args);
+            //free(pipes);
             dup2(stdOutCopy, 1);
+            dup2(stdInCopy, 0);
+            //close(fd[0]);
+            //close(fd[1]);
         }
         free(buf);
         free(line);
@@ -156,7 +160,14 @@ char** parse(char* line, const char* c){
 }
 
 //only exec cd and pwd, others are exec'd with bin. 
-void execute(char** args){
+void execute(char** args, int pip, int out, int in){
+
+    int fd[2];
+    
+    if(pip ==1){
+        pipe(fd);
+    }
+
     if(!strcmp(args[0], "cd")){
         //setup error case
         chdir(args[1]);
@@ -164,25 +175,61 @@ void execute(char** args){
     }
     else if(!strcmp(args[0], "pwd")){
         //setup error case
+
+        if(pip == 1){
+            dup2(fd[1], 1);
+            dup2(fd[0], 0);
+        }
         long size = pathconf(".", _PC_PATH_MAX);
         char* buf = (char*) malloc(size);
         char* cwd = getcwd(buf, size);        
         printf("%s\n", cwd);
+        write(1, cwd, size);
         free(buf);
+        if(pip == 1){
+            close(fd[1]);
+            close(fd[0]);
+            dup2(out, 1);
+            dup2(in, 0);
+        }
         return;
     }
     else{
         pid_t pid, wpid;
         int status;
         pid = fork();
+        //printf("%d\n", pid);
+        //fflush(0);
         if(pid == 0){
             //printf("NUMARGS: %d\n", numArgs);
-            fflush(0);
-            execvp(args[0], args);
+            //fflush(0);
+            
+            /*
+            int pid2 = fork();
+            
+            if(pid2 == 0){
+                close(fd[0]);
+                char *cmd1[] = { "ls", "-al", 0 };
+                execvp(cmd1[0], cmd1);
+                exit(0);
+            }*/
+
+            if(pip == 1){
+                dup2(fd[1], 1);
+                close(fd[0]);
+            }
+            status = execvp(args[0], args);
+            //printf("%d\n", status);
         }
         else{
-            waitpid(-1, &status, WUNTRACED);
+            if(pip ==1){
+                dup2(fd[0], 0);
+                close(fd[1]);
+            }
+            waitpid(pid, &status, WUNTRACED);
+            
         }
     }
+    //perror("Returnign!!");
     return;
 }

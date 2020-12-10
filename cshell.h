@@ -14,7 +14,7 @@
 void loop();
 char* read_line();
 char** parse(char* inp, const char* c);
-void execute(char** inp);
+void execute(char** inp, int pip, int out, int in);
 
 char* removeSpace(char* string);
 
