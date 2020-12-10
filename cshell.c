@@ -1,25 +1,38 @@
 #include "cshell.h"
-#define BUFSIZE 1024
+#define BUFSIZE 1028
 #define ARGSIZE 5
 
 int numArgs = 0;
 int numcmds = 0;
 int append = 0;
+
+pid_t pid = -1;
+int killed = 0;
+
+char* buf;
 //TODO LIST:
-//Can combine read and parse into one pretty simply. just split up for simplicity atm
-//start exec
-//parse: first split up into list of each individual command by strtoking with ;, then 
-    //we have a loop of executables that we use my execute on
-//need to check for piping: > | >>
-//need alllll the error checks lmfao
+//program breaks if there are semi-colons somewhere
+
+void sigHand(){
+    if (pid != -1) kill(pid, SIGKILL);
+    killed = 1;
+    long size = pathconf(".", _PC_PATH_MAX);
+    //char* buf = (char*) malloc(size);
+    char* cwd = getcwd(buf, size);        
+    printf("\n%s$ ", cwd);
+    fflush(0);
+    //free(buf);
+}
 
 
 int main(int argc, char** argv){
+    signal(SIGINT, sigHand);
     loop();
 }
 
 void loop(){
     int check = 1;
+    int file = -1;
     const char s[2] = ";";
     const char p[2] = " ";
     const char a[3] = ">>";
@@ -32,14 +45,22 @@ void loop(){
     int input = open("input.txt", O_CREAT | O_WRONLY, 00777);
     dup2(input, 0);
     dup2(output, 1);*/
-
+    long size;
+    //char* buf;
+    char* cwd;
     do{
-        long size = pathconf(".", _PC_PATH_MAX);
-        char* buf = (char*) malloc(size);
-        char* cwd = getcwd(buf, size);        
-        printf("%s$ ", cwd);
-        fflush(0);
+        if (killed == 0){
+            size = pathconf(".", _PC_PATH_MAX);
+            buf = (char*) malloc(size);
+            cwd = getcwd(buf, size);        
+            printf("%s$ ", cwd);
+            fflush(0);
+        }else {
+            killed = 0;
+        }
         char* line = read_line();
+        if(line == NULL) continue;
+        killed = 0;
         //printf("line: %s\n", line);
         char** cmds = parse(line, s);
         numcmds = numArgs;
@@ -61,12 +82,13 @@ void loop(){
                 char** argWpipe = parse(pipes[k], p);
                 execute(argWpipe, 1, stdOutCopy, stdInCopy);
                 free(argWpipe);
+                if(killed == 1) break;
             }
-            
+            if(killed == 1) break;
             dup2(stdOutCopy, 1);
             //dup2(stdInCopy, 0);
             if(filepath != NULL){
-                int file = -1;
+                file = -1;
                 *filepath = '\0'; 
                 if(*(filepath+1) == '>'){
                     *(filepath+1) = '\0';
@@ -84,7 +106,6 @@ void loop(){
                 
                 if(file < 0) continue;
                 dup2(file, 1);
-                close(file);
             }
             
 
@@ -93,13 +114,18 @@ void loop(){
 
             execute(args, 0, stdOutCopy, stdInCopy);
             free(args);
-            //free(pipes);
+            free(pipes);
+            free(cmds);
+            if(file > 0){
+                close(file);
+                file = -1;
+            }
             dup2(stdOutCopy, 1);
             dup2(stdInCopy, 0);
             //close(fd[0]);
             //close(fd[1]);
         }
-        free(buf);
+        //free(buf);
         free(line);
         
     }while(check);
@@ -121,6 +147,7 @@ char* read_line(){
     while(1){
         char c;
         read(0, &c, 1);
+        
         if(c == EOF || c == '\n'){
             buffer[pos] = '\0';
             return buffer;
@@ -131,7 +158,11 @@ char* read_line(){
         pos++;
         if(pos > bufsize){
             bufsize+= BUFSIZE;
-            char* newbuf = realloc(buffer, bufsize);
+            //char* newbuf = realloc(buffer, bufsize);
+            char* newbuf = malloc(bufsize);
+            if(newbuf == NULL) printf("New buffer is null\n");
+            memcpy(newbuf, buffer, pos);
+            free(buffer);
             buffer = newbuf;
         }
     }
@@ -150,7 +181,11 @@ char** parse(char* line, const char* c){
         pos++;
         if(pos >= argsize){
             argsize+= ARGSIZE;
-            char** newargs = realloc(args, argsize);
+            //char** newargs = realloc(args, argsize);
+            char** newargs = malloc(argsize * sizeof(char*));
+            if(newargs == NULL) printf("New args is null\n");
+            memcpy(newargs, args, pos * sizeof(char*));
+            free(args);
             args = newargs;
         }
         token = strtok(NULL, c);
@@ -195,10 +230,10 @@ void execute(char** args, int pip, int out, int in){
         return;
     }
     else if(!strcmp(args[0], "exit")){
-        exit(0);
+        _exit(0);
     }
     else{
-        pid_t pid, wpid;
+        pid_t wpid;
         int status;
         pid = fork();
         //printf("%d\n", pid);
@@ -230,7 +265,7 @@ void execute(char** args, int pip, int out, int in){
                 close(fd[1]);
             }
             waitpid(pid, &status, WUNTRACED);
-            
+            if(killed == 1) pid = -1;
         }
     }
     //perror("Returnign!!");
